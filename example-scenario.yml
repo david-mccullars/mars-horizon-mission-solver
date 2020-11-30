@@ -1,0 +1,18 @@
+---
+turns: 4
+actions_per_turn: 3
+start: 4wc3h
+goal: 4r12p5h
+commands:
+  srt: w 2r
+  gcc: 2b rrpp
+  dt: bphh 4r
+  pl: w p
+  or: b pp
+  fca: r pb
+  mdp: ch bb
+  mtu: cr pppp
+  mr: wc ppbb
+  power: w
+turn_cost: -1t2h
+turn_limit: 3h

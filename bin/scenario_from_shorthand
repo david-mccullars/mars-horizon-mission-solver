@@ -1,0 +1,75 @@
+#!/usr/bin/env ruby
+require 'yaml'
+require 'json'
+
+SHORTHAND_RE = /(-?\d*)([crbpwdhtx])/
+
+String.class_eval do
+
+  def to_resources
+    raise "Invalid shorthand: #{self.inspect}" unless self =~ /\A(#{SHORTHAND_RE})*\z/
+    scan(SHORTHAND_RE).each_with_object({}) do |(quant, type), h|
+      type = case type
+             when 'c'; 'crew'
+             when 'r'; 'comm'
+             when 'b'; 'data'
+             when 'p'; 'nav'
+             when 'w'; 'power'
+             when 'd'; 'drift'
+             when 'h'; 'heat'
+             when 't'; 'thrust'
+             when 'x'; 'radiation'
+             else; raise "Invalid type: #{type}"; end
+      h[type] ||= 0
+      h[type] += quant == '' ? 1 : quant.to_i
+    end
+  end
+
+end
+
+Hash.class_eval do
+
+  def to_commands
+    map do |name, value|
+      input, output = value.split(/\s+/, 2)
+      input, output = '', input if output.nil?
+      {
+        'name' => name,
+        'input' => input.to_resources,
+        'output' => output.to_resources,
+      }
+    end.prioritize
+  end
+
+end
+
+Array.class_eval do
+
+  def prioritize
+    sort_by! do |cmd|
+      name, input, output = cmd.values_at('name', 'input', 'output')
+      if name == 'power'
+        0
+      elsif name == 'dt'
+        -1000
+      else
+        keys = (input.keys + output.keys).uniq - %w[heat drift crew]
+        o = output.values_at(*keys).compact.reduce(:+).to_f
+        i = input.values_at(*keys).compact.reduce(:+).to_f
+        i += input['power'].to_i # penalize power use
+        -100 * (o / i) - o
+      end
+    end
+  end
+
+end
+
+input = YAML.load_file(ARGV[0])
+input.merge!(
+  'start' => input.fetch('start').to_resources,
+  'goal' => input.fetch('goal').to_resources,
+  'commands' => input.fetch('commands').to_commands,
+  'turn_cost' => input.fetch('turn_cost', '').to_resources,
+  'turn_limit' => input.fetch('turn_limit', '').to_resources,
+)
+puts input.to_json

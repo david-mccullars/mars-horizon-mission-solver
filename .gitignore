@@ -13,3 +13,7 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# Additional
+bin/mars_horizon
+scenario.yml
