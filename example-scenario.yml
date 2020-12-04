@@ -15,4 +15,5 @@ commands:
   mr: wc ppbb
   power: w
 turn_cost: -1t2h
-turn_limit: 3h
+turn_must_end_above: ""
+turn_must_end_below: ""

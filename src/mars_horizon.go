@@ -54,9 +54,16 @@ func (self *Resources) subtract(other *Resources) {
 	self.Radiation -= other.Radiation
 }
 
-func (self *Resources) exceeds(other *Resources) bool {
-	// Currently only heat is supported here
-	return self.Heat > other.Heat
+func (self *Resources) endsWithin(lowerBound *Resources, upperBound *Resources) bool {
+	return self.Comm > lowerBound.Comm && self.Comm < upperBound.Comm &&
+		self.Data > lowerBound.Data && self.Data < upperBound.Data &&
+		self.Nav > lowerBound.Nav && self.Nav < upperBound.Nav &&
+		self.Power > lowerBound.Power && self.Power < upperBound.Power &&
+		self.Drift > lowerBound.Drift && self.Drift < upperBound.Drift &&
+		self.Heat > lowerBound.Heat && self.Heat < upperBound.Heat &&
+		self.Thrust > lowerBound.Thrust && self.Thrust < upperBound.Thrust &&
+		self.Crew > lowerBound.Crew && self.Crew < upperBound.Crew &&
+		self.Radiation > lowerBound.Radiation && self.Radiation < upperBound.Radiation
 }
 
 func (self *Resources) risk(goal *Resources) int {
@@ -123,13 +130,14 @@ type Command struct {
 // Scenario is a specific Mars Horizons mini-game scenario with a starting set of resources, a set of
 // commands, and a desired goal
 type Scenario struct {
-	Turns          uint32
-	ActionsPerTurn uint32 `json:"actions_per_turn"`
-	Start          Resources
-	Goal           Resources
-	Commands       []Command
-	TurnCost       Resources `json:"turn_cost"`
-	TurnLimit      Resources `json:"turn_limit"`
+	Turns            uint32
+	ActionsPerTurn   uint32 `json:"actions_per_turn"`
+	Start            Resources
+	Goal             Resources
+	Commands         []Command
+	TurnCost         Resources `json:"turn_cost"`
+	TurnMustEndAbove Resources `json:"turn_must_end_above"`
+	TurnMustEndBelow Resources `json:"turn_must_end_below"`
 }
 
 func (self *Scenario) totalActions() uint32 {
@@ -271,7 +279,7 @@ func (self *Sequence) hasMoreActionsAvailable() bool {
 }
 
 func (self *Sequence) isInvalid() bool {
-	if self.isTurnEnd() && self.Resources.exceeds(&self.scenario.TurnLimit) {
+	if self.isTurnEnd() && !self.Resources.endsWithin(&self.scenario.TurnMustEndAbove, &self.scenario.TurnMustEndBelow) {
 		return true
 	}
 
@@ -315,10 +323,14 @@ func (self *Sequence) attemptAction(command *Command) *Sequence {
 
 	next.Resources.add(&command.Output)
 
+	if next.isInvalid() {
+		return nil
+	}
+
 	return &next
 }
 
-func (self *Sequence) debug(commands ...string) {
+func (self *Sequence) playActions(commands ...string) {
 	seq := self
 	fmt.Println("START: ", seq.Resources)
 	for _, name := range commands {
@@ -382,11 +394,18 @@ func main() {
 
 	scenario := loadScenario()
 	startSequence := startSequence(scenario)
-	//startSequence.debug("ru", "le", "pt", "power")
+
+	// Rather than perform a search, it is possible to specify a list of actions,
+	// and this will show each step and what the resources look like after each one.
+	if len(os.Args) > 1 {
+		startSequence.playActions(os.Args[1:]...)
+		return
+	}
+
 	ps := parallelsearch.New(
 		128,                          // poolSize
 		int(scenario.totalActions()), // searchDepth
-		10,                           // searchLimit
+		4,                            // searchLimit
 	)
 	ps.Start(startSequence)
 

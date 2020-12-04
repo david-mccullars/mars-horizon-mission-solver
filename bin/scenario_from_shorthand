@@ -4,25 +4,34 @@ require 'json'
 
 SHORTHAND_RE = /(-?\d*)([crbpwdhtx])/
 
+INFINIY_LOWER_BOUND = {}
+INFINIY_UPPER_BOUND = {}
+%w[crew comm data nav power drift heat thrust radiation].each do |type|
+  INFINIY_LOWER_BOUND[type] = -1 << 63
+  INFINIY_UPPER_BOUND[type] = 1 << 63 - 1
+end
+
 String.class_eval do
 
-  def to_resources
+  def to_resources(base = {})
     raise "Invalid shorthand: #{self.inspect}" unless self =~ /\A(#{SHORTHAND_RE})*\z/
-    scan(SHORTHAND_RE).each_with_object({}) do |(quant, type), h|
+    h = {}
+    scan(SHORTHAND_RE).each do |quant, type|
       type = case type
              when 'c'; 'crew'
-             when 'r'; 'comm'
-             when 'b'; 'data'
-             when 'p'; 'nav'
-             when 'w'; 'power'
+             when 'r'; 'comm'       # r = red
+             when 'b'; 'data'       # b = blue
+             when 'p'; 'nav'        # p = purple
+             when 'w'; 'power'      # w for "watt"
              when 'd'; 'drift'
              when 'h'; 'heat'
              when 't'; 'thrust'
-             when 'x'; 'radiation'
+             when 'x'; 'radiation'  # x for "x-rays"
              else; raise "Invalid type: #{type}"; end
       h[type] ||= 0
       h[type] += quant == '' ? 1 : quant.to_i
     end
+    base.merge(h)
   end
 
 end
@@ -70,6 +79,7 @@ input.merge!(
   'goal' => input.fetch('goal').to_resources,
   'commands' => input.fetch('commands').to_commands,
   'turn_cost' => input.fetch('turn_cost', '').to_resources,
-  'turn_limit' => input.fetch('turn_limit', '').to_resources,
+  'turn_must_end_above' => input.fetch('turn_must_end_above', '').to_resources(INFINIY_LOWER_BOUND),
+  'turn_must_end_below' => input.fetch('turn_must_end_below', '').to_resources(INFINIY_UPPER_BOUND),
 )
 puts input.to_json
