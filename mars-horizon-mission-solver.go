@@ -10,9 +10,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/david-mccullars/mars-horizon-mission-solver/parallelsearch"
 	"github.com/gookit/color"
-
-	"./parallelsearch"
 )
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

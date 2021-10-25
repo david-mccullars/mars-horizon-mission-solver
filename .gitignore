@@ -15,5 +15,5 @@
 # vendor/
 
 # Additional
-bin/mars_horizon
+mars-horizon-mission-solver
 scenario.yml
